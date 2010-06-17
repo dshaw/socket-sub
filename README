@@ -1,0 +1,4 @@
+PubSubHubbub Web Socket Subscriber
+
+to run
+$ node server.js

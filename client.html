@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Socket Subscriber</title>
+    <style>
+      body { font-family:sans-serif; font-size:2em; text-align:center; font-weight:bold }
+      article, section { display:block }
+      article { margin:2em }
+      #feed { width: 80%; margin:1em 0; font-size:1.2em }
+      #messages { list-style:none }
+      #messages li { padding:0.2em 0 }
+      #status { color:white }
+      #status.open { background-color:green }
+      #status.closed { background-color:blue }
+      #status.failed { background-color:red }
+    </style>
+  </head>
+  <body>
+    <article>
+      <form>
+        <input type=text id=feed placeholder="Subscribe to a feed." />
+      </form>
+      <section id=status>Not connected</section>
+      <ul id=messages></ul>
+    </article>
+
+    <script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+    <script>
+      $(document).ready(function() {
+        var conn = {},
+            serverUri = "ws://localhost:8888",
+            messages = document.getElementById("messages"),
+            state = document.getElementById("status")
+            feed = document.getElementById('feed'),
+            form = feed.form;
+
+        function openConnection() {
+          if ( !conn.readyState || conn.readyState > 1 ) {
+
+            conn = new WebSocket( serverUri );
+
+            conn.onopen = function () {
+              state.innerHTML = "Socket Open";
+              state.className = "open";
+            };
+
+            conn.onmessage = function( event ) {
+              var message = (typeof event.data === "string") ? event.data : JSON.parse( event.data );
+              $("#messages").prepend($("<li/>").html(message));
+            };
+
+            conn.onclose = function( event ) {
+              state.innerHTML = "Socket Closed";
+              state.className = "closed";
+            };
+          }
+        }
+
+        if (!window.WebSocket) {
+          state.innerHTML = "Sockets not supported";
+          state.className = "failed";
+        } else {
+          form.addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            // if web socket connected
+            if (conn.readyState === 1) {
+              conn.send( JSON.stringify( feed.value ) );
+              feed.value = "";
+            }
+          }, false);
+
+          openConnection();
+        }
+      });
+    </script>
+
+  </body>
+</html>
