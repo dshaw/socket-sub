@@ -9,6 +9,8 @@ var HOST = "localhost",
     PORT = 8888,
     DEBUG = true,
     CLIENT_FILE = "client.html",
+    USERNAME = "username",
+    PASSWORD = "password",
     HUB = "http://superfeedr.com/hubbub";
 
 var Subscription = function( callbackUri, feed ) {
@@ -24,12 +26,11 @@ var Subscription = function( callbackUri, feed ) {
     "hub.topic" : this.topic
   };
 
-  this.qs = function() {
-    var search = querystring.stringify( params );
-    sys.puts( "Subscription POST Params: "+search );
-    return search;
+  this.data = function() {
+    return encodeURI( querystring.stringify( params ) );
   }
 }
+
 
 // Server --------------------------------------
 var server = ws.createServer({ debug: DEBUG });
@@ -41,43 +42,61 @@ server.addListener("listening", function() {
 // Handle Web Socket Requests
 server.addListener("connection", function( conn ) {
 
-  sys.puts( "<"+conn._id+"> connected." );
-  server.send( conn._id, "Awaiting feed subscription request." );
+  sys.puts( "<"+conn._id+"> connected" );
+  server.send( conn._id, "Awaiting feed subscription request" );
 
   conn.addListener("message", function( message ) {
     var wsid = conn._id;
     sys.puts( "<"+wsid+"> "+message );
     // TODO: validate feed uri
     sys.puts( "<"+wsid+"> Subscribing to "+message );
-    server.send( wsid, "Subscribing to "+message+"." )
+    server.send( wsid, "Subscribing to "+message )
 
     // Send subscription request to hub.
     var callbackUri = "http://dshaw.com/wsclients/"+wsid+"/",
         sub = new Subscription( callbackUri, message ),
-        qs = sub.qs(),
-        subUrl = HUB +"?"+ qs;
-        hub = url.parse( subUrl ),
-        contentLength = qs.length;
-
-    sys.puts( "content-length: "+contentLength );
-    sys.puts( "POST "+subUrl );
+        body = sub.data(),
+        hub = url.parse( HUB ),
+        contentLength = data.length,
+        headers = {
+          "Accept": '*/*',
+          "Content-Length": contentLength,
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Host": hub.hostname,
+          "User-Agent": "Socket-Sub for Node.js"
+        };
 
     var client = http.createClient( hub.port || 80, hub.hostname );
-    var request = client.request("POST", hub.pathname + (hub.search || ""),
-            {
-              "host": hub.hostname,
-              "Content-Length": contentLength
-            }); // , "Content-Length": contentLength
+    var request = client.request("POST", hub.pathname + (hub.search || ""), headers);
+
+    request.write(body, 'utf8');
+
+    //    for (var p in request) {
+    //      if (typeof request[p] !== "function") {
+    //        sys.puts( p+": "+request[p] );
+    //      }
+    //    }
+    sys.puts("");
+    sys.puts("REQUEST");
+    sys.print(request._header);
+    sys.puts(body);
 
     request.addListener("response", function(response) {
-      sys.puts('STATUS: ' + response.statusCode);
-      sys.puts('HEADERS: ' + JSON.stringify(response.headers));
-      response.setEncoding('utf8');
+      var body = "";
+
       response.addListener("data", function(chunk) {
-        sys.puts(chunk);
+        body += chunk;
+      });
+
+      response.addListener('end', function() {
+        sys.puts("");
+        sys.puts("RESPONSE");
+        sys.puts("STATUS: "+response.statusCode);
+        sys.puts("HEADERS: "+JSON.stringify(response.headers));
+        sys.puts("BODY: "+body);
       });
     });
-    
+
     request.end();
   });
 
