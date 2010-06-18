@@ -1,11 +1,35 @@
-var sys = require("sys"),
+var http = require("http"),
+    sys = require("sys"),
+    querystring = require("querystring"),
+    url = require("url"),
     readFile = require("fs").readFile,
     ws = require('./deps/node-websocket-server/lib/ws');
 
 var HOST = "localhost",
     PORT = 8888,
     DEBUG = true,
-    CLIENT_FILE = "client.html";
+    CLIENT_FILE = "client.html",
+    HUB = "http://superfeedr.com/hubbub";
+
+var Subscription = function( callbackUri, feed ) {
+  this.mode = "subscribe";
+  this.verify = "async";
+  this.callback = callbackUri;
+  this.topic = feed;
+
+  var params = {
+    "hub.mode" : this.mode,
+    "hub.verify" : this.verify,
+    "hub.callback" : this.callback,
+    "hub.topic" : this.topic
+  };
+
+  this.qs = function() {
+    var search = querystring.stringify( params );
+    sys.puts( "Subscription POST Params: "+search );
+    return search;
+  }
+}
 
 // Server --------------------------------------
 var server = ws.createServer({ debug: DEBUG });
@@ -21,11 +45,40 @@ server.addListener("connection", function( conn ) {
   server.send( conn._id, "Awaiting feed subscription request." );
 
   conn.addListener("message", function( message ) {
-    sys.puts( "<"+conn._id+"> "+message );
+    var wsid = conn._id;
+    sys.puts( "<"+wsid+"> "+message );
     // TODO: validate feed uri
-    // TODO: send subscription request
-    sys.puts( "<"+conn._id+"> Subscribing to "+message );
-    server.send( conn._id, "Subscribing to "+message )
+    sys.puts( "<"+wsid+"> Subscribing to "+message );
+    server.send( wsid, "Subscribing to "+message+"." )
+
+    // Send subscription request to hub.
+    var callbackUri = "http://dshaw.com/wsclients/"+wsid+"/",
+        sub = new Subscription( callbackUri, message ),
+        qs = sub.qs(),
+        subUrl = HUB +"?"+ qs;
+        hub = url.parse( subUrl ),
+        contentLength = qs.length;
+
+    sys.puts( "content-length: "+contentLength );
+    sys.puts( "POST "+subUrl );
+
+    var client = http.createClient( hub.port || 80, hub.hostname );
+    var request = client.request("POST", hub.pathname + (hub.search || ""),
+            {
+              "host": hub.hostname,
+              "Content-Length": contentLength
+            }); // , "Content-Length": contentLength
+
+    request.addListener("response", function(response) {
+      sys.puts('STATUS: ' + response.statusCode);
+      sys.puts('HEADERS: ' + JSON.stringify(response.headers));
+      response.setEncoding('utf8');
+      response.addListener("data", function(chunk) {
+        sys.puts(chunk);
+      });
+    });
+    
+    request.end();
   });
 
 });
