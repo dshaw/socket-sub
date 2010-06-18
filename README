@@ -1,4 +1,7 @@
 PubSubHubbub Web Socket Subscriber
 
+Caveat Emptor: This project is still under development and is not yet even at alpha quality.
+That said, all contributions and feedback are welcome.
+
 to run
 $ node server.js
