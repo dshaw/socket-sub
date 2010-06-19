@@ -3,6 +3,7 @@ var http = require("http"),
     querystring = require("querystring"),
     url = require("url"),
     readFile = require("fs").readFile,
+    base64 = require("./deps/base64"),
     ws = require('./deps/node-websocket-server/lib/ws');
 
 var HOST = "localhost",
@@ -12,6 +13,16 @@ var HOST = "localhost",
     USERNAME = "username",
     PASSWORD = "password",
     HUB = "http://superfeedr.com/hubbub";
+
+var percentEncode = function( str ) {
+  return encodeURI( str )
+      .replace(/\!/g, "%21")
+      .replace(/\'/g, "%27")
+      .replace(/\(/g, "%28")
+      .replace(/\)/g, "%29")
+      .replace(/\*/g, "%2A")
+      .replace(/\./g, "%2E");
+};
 
 var Subscription = function( callbackUri, feed ) {
   this.mode = "subscribe";
@@ -23,12 +34,18 @@ var Subscription = function( callbackUri, feed ) {
     "hub.mode" : this.mode,
     "hub.verify" : this.verify,
     "hub.callback" : this.callback,
-    "hub.topic" : this.topic
+    "hub.topic" : this.topic.replace(/"/g, "")
   };
 
   this.data = function() {
-    return encodeURI( querystring.stringify( params ) );
+    return percentEncode( querystring.stringify( params ) );
   }
+}
+
+// Thank you MDC.
+function fixedEncodeURIComponent (str) {
+  return encodeURIComponent(str).replace(/!/g, '%21').replace(/'/g, '%27').replace(/\(/g, '%28').
+                                 replace(/\)/g, '%29').replace(/\*/g, '%2A');
 }
 
 
@@ -57,9 +74,10 @@ server.addListener("connection", function( conn ) {
         sub = new Subscription( callbackUri, message ),
         body = sub.data(),
         hub = url.parse( HUB ),
-        contentLength = data.length,
+        contentLength = body.length,
         headers = {
           "Accept": '*/*',
+          "Authorization": "Basic "+base64.encode(USERNAME + ":" + PASSWORD),
           "Content-Length": contentLength,
           "Content-Type": "application/x-www-form-urlencoded",
           "Host": hub.hostname,
