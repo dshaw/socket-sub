@@ -1,18 +1,21 @@
-var http = require("http"),
+var fs = require("fs"),
+    http = require("http"),
     sys = require("sys"),
     querystring = require("querystring"),
     url = require("url"),
-    readFile = require("fs").readFile,
     base64 = require("./deps/base64"),
     ws = require('./deps/node-websocket-server/lib/ws');
 
-var HOST = "localhost",
-    PORT = 8888,
-    DEBUG = true,
-    CLIENT_FILE = "client.html",
-    USERNAME = "username",
-    PASSWORD = "password",
-    HUB = "http://superfeedr.com/hubbub";
+var config = JSON.parse( fs.readFileSync("./config.json", "utf8") ) || {};
+
+// To configure this application, edit "config.json".
+var HOST = config.host || null, // localhost
+    PORT = config.port || 27261,
+    HUB = config.hub || "http://superfeedr.com/hubbub",
+    USERNAME = config.username || "username",
+    PASSWORD = config.password || "password,"
+    CLIENT = config.client || "client.html",
+    DEBUG = config.password || false;
 
 var percentEncode = function( str ) {
   return encodeURI( str )
@@ -26,7 +29,7 @@ var percentEncode = function( str ) {
 
 var Subscription = function( callbackUri, feed ) {
   this.mode = "subscribe";
-  this.verify = "async";
+  this.verify = "sync";
   this.callback = callbackUri;
   this.topic = feed;
 
@@ -53,7 +56,9 @@ function fixedEncodeURIComponent (str) {
 var server = ws.createServer({ debug: DEBUG });
 
 server.addListener("listening", function() {
-  sys.puts("Listening for connections at ws://" + HOST + ':' + PORT);
+  var hostInfo = (HOST || "127.0.0.1") + ":" + PORT.toString();
+  sys.puts("Server at http://" + hostInfo + "/");
+  sys.puts("Listening for connections at ws://" + hostInfo);
 });
 
 // Handle Web Socket Requests
@@ -127,7 +132,7 @@ server.addListener("close", function( conn ) {
 // Handle HTTP Requests
 server.addListener("request", function( req, res ) {
 
-  var filename = CLIENT_FILE,
+  var filename = CLIENT,
       headers,
       body,
 
@@ -136,7 +141,7 @@ server.addListener("request", function( req, res ) {
           callback();
           return;
         }
-        readFile( filename, function (err, data) {
+        fs.readFile( filename, function (err, data) {
           if (err) {
             sys.puts("Error loading " + filename);
           } else {
