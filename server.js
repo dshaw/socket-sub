@@ -56,7 +56,7 @@ function fixedEncodeURIComponent (str) {
 var server = ws.createServer({ debug: DEBUG });
 
 server.addListener("listening", function() {
-  var hostInfo = (HOST || "127.0.0.1") + ":" + PORT.toString();
+  var hostInfo = (HOST || "localhost") + ":" + PORT.toString();
   sys.puts("Server at http://" + hostInfo + "/");
   sys.puts("Listening for connections at ws://" + hostInfo);
 });
@@ -72,10 +72,10 @@ server.addListener("connection", function( conn ) {
     sys.puts( "<"+wsid+"> "+message );
     // TODO: validate feed uri
     sys.puts( "<"+wsid+"> Subscribing to "+message );
-    server.send( wsid, "Subscribing to "+message )
+    server.send( wsid, "Subscribing to "+message );
 
     // Send subscription request to hub.
-    var callbackUri = "http://dshaw.com/wsclients/"+wsid+"/",
+    var callbackUri = "http://"+(HOST || "localhost")+":"+PORT+"/wsclients/"+wsid+"/",
         sub = new Subscription( callbackUri, message ),
         body = sub.data(),
         hub = url.parse( HUB ),
@@ -88,6 +88,12 @@ server.addListener("connection", function( conn ) {
           "Host": hub.hostname,
           "User-Agent": "Socket-Sub for Node.js"
         };
+
+    if ( (url.parse( callbackUri )).hostname === "localhost" ) {
+      var warning = "WARNING: PubSubHubbub subscriber cannot run from localhost.";
+      sys.puts(warning);
+      server.send( wsid, warning );
+    }
 
     var client = http.createClient( hub.port || 80, hub.hostname );
     var request = client.request("POST", hub.pathname + (hub.search || ""), headers);
