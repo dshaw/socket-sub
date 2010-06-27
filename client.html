@@ -28,12 +28,31 @@
     <script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
     <script>
       $(document).ready(function() {
+
         var conn = {},
-            serverUri = "ws://localhost:8888",
+            serverUri,
             messages = document.getElementById("messages"),
             state = document.getElementById("status")
             feed = document.getElementById('feed'),
             form = feed.form;
+
+        function startConnection() {
+          // TODO: Load host info from config.json
+          // Currently, all http requests lazily return client.html.
+          //
+          // $.getJSON('config.json', function(config){
+          //   console.log(config);
+          //  var host = config.host || "localhost",
+          //      port = config.port || 27261;
+          //  serverUri = "ws://"+host+":"+port;
+          //  openConnection();
+          //});
+
+          var host = "localhost",
+              port = 27261;
+          serverUri = "ws://"+host+":"+port;
+          openConnection();
+        }
 
         function openConnection() {
           if ( !conn.readyState || conn.readyState > 1 ) {
@@ -71,7 +90,7 @@
             }
           }, false);
 
-          openConnection();
+          startConnection();
         }
       });
     </script>
