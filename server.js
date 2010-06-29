@@ -13,7 +13,7 @@ var HOST = config.host || null, // localhost
     PORT = config.port || 27261,
     HUB = config.hub || "http://superfeedr.com/hubbub",
     USERNAME = config.username || "username",
-    PASSWORD = config.password || "password,"
+    PASSWORD = config.password || "password",
     CLIENT = config.client || "client.html",
     DEBUG = config.password || false;
 
@@ -27,11 +27,26 @@ var percentEncode = function( str ) {
       .replace(/\./g, "%2E");
 };
 
+var printRequest = function(request, body) {
+  sys.puts("");
+  sys.puts("REQUEST");
+  sys.print(request._header);
+  sys.puts(body);
+};
+
+var printResponse = function(response, body) {
+  sys.puts("");
+  sys.puts("RESPONSE");
+  sys.puts("STATUS: "+response.statusCode);
+  sys.puts("HEADERS: "+JSON.stringify(response.headers));
+  sys.puts("BODY: "+body);
+};
+
 var Subscription = function( callbackUri, feed ) {
   this.mode = "subscribe";
-  this.verify = "sync";
+  this.verify = "async";
   this.callback = callbackUri;
-  this.topic = feed;
+  this.topic = this.id = feed; // TODO: convert id into a hash of the feed url.
 
   var params = {
     "hub.mode" : this.mode,
@@ -43,13 +58,124 @@ var Subscription = function( callbackUri, feed ) {
   this.data = function() {
     return percentEncode( querystring.stringify( params ) );
   }
-}
+};
 
-// Thank you MDC.
-function fixedEncodeURIComponent (str) {
-  return encodeURIComponent(str).replace(/!/g, '%21').replace(/'/g, '%27').replace(/\(/g, '%28').
-                                 replace(/\)/g, '%29').replace(/\*/g, '%2A');
-}
+var SubscriptionManager = function() {
+  this.subscribers = {};
+
+  this.connect = function(id) {
+    if (!this.subscribers[id]) {
+      this.subscribers[id] = {
+        subscriptions : {}
+      };
+    }
+  }
+
+  this.disconnect = function(id) {
+    delete this.subscribers[id];
+  }
+
+  this.subscribe = function(id, subscription) {
+    if (!this.subscribers[id].subscriptions[subscription.id]) {
+      this.subscribers[id].subscriptions[subscription.id] = subscription;
+    }
+  }
+};
+
+var requestHandler = function( req, res ) {
+
+  var handle,
+      id,
+      uri = url.parse( req.url ),
+      path = (uri.pathname.substring(1)).split("/"),
+      simpleHeader = function(body) {
+        return {
+          "Content-Type": 'text/html',
+          "Content-Length": body.length
+        }
+      }
+      requestMap = {
+        404 : function ( req, res ) {
+          body = "File not found"
+          headers = simpleHeader(body);
+          res.sendHeader(404, headers);
+          res.write(body);
+          res.close();
+        },
+        index : function( req, res ) {
+          var body,
+              headers,
+
+              loadResponseData = function( callback ) {
+                if (body && headers) {
+                  callback();
+                  return;
+                }
+                fs.readFile( CLIENT, function (err, data) {
+                  if (err) {
+                    sys.puts("Error loading " + filename);
+                  } else {
+                    body = data;
+                    headers = simpleHeader(body);
+                    callback();
+                  }
+                });
+              };
+
+          loadResponseData(function () {
+            res.writeHead(200, headers);
+            res.end(body);
+          });
+        },
+        wsclient : function ( req, res, id ) {
+          switch(req.method) {
+            case "GET":
+              body = id,
+              headers = simpleHeader(body);
+              res.sendHeader(200, headers);
+              res.write(body);
+              res.close();
+              break;
+            case "POST":
+              var data = "", hub = this;
+              req.addListener("data", function(chunk) {
+                  data += chunk;
+              });
+              req.addListener("end", function() {
+                  var params = qs.parse(data);
+                  if("hub.mode" in params &&
+                     ~["publish",
+                       "subscribe",
+                       "unsubscribe"].indexOf(params["hub.mode"])) {
+                      hub["do_"+params["hub.mode"]](req, res, params);
+                  } else {
+                      hub["400"](req, res, "Unknown hub.mode parameter");
+                  }
+              });
+              break;
+          }
+        }
+      };
+
+  if (path.length === 0 || path === "client.html") {
+    handle = "index";
+  } else if ( path[0] === "wsclients" ) {
+    if ( !!path[1] && !isNaN(parseInt(path[1], 10)) ) {
+      handle = "wsclients";
+      id = path[1];
+    } else {
+      handle = "404";
+    }
+  } else if ( !(path in requestMap) && !isNaN(parseInt(path, 10)) ) {
+    handle = "404";
+  } else {
+    req.setBodyEncoding("utf-8");
+    requestMap[handle]( req, res, id );
+  }
+};
+
+
+var subMan = new SubscriptionManager(); // connection manager
 
 
 // Server --------------------------------------
@@ -64,6 +190,7 @@ server.addListener("listening", function() {
 // Handle Web Socket Requests
 server.addListener("connection", function( conn ) {
 
+  subMan.connect( conn._id );
   sys.puts( "<"+conn._id+"> connected" );
   server.send( conn._id, "Awaiting feed subscription request" );
 
@@ -105,10 +232,7 @@ server.addListener("connection", function( conn ) {
     //        sys.puts( p+": "+request[p] );
     //      }
     //    }
-    sys.puts("");
-    sys.puts("REQUEST");
-    sys.print(request._header);
-    sys.puts(body);
+    if (DEBUG) printRequest( request, body );
 
     request.addListener("response", function(response) {
       var body = "";
@@ -118,11 +242,8 @@ server.addListener("connection", function( conn ) {
       });
 
       response.addListener('end', function() {
-        sys.puts("");
-        sys.puts("RESPONSE");
-        sys.puts("STATUS: "+response.statusCode);
-        sys.puts("HEADERS: "+JSON.stringify(response.headers));
-        sys.puts("BODY: "+body);
+        subMan.subscribe(conn._id, sub);
+        if (DEBUG) printResponse( response, body );
       });
     });
 
@@ -132,39 +253,11 @@ server.addListener("connection", function( conn ) {
 });
 
 server.addListener("close", function( conn ) {
+  subMan.disconnect( conn._id );
   sys.puts( "<"+conn._id+"> closed connection." );
 });
 
 // Handle HTTP Requests
-server.addListener("request", function( req, res ) {
-
-  var filename = CLIENT,
-      headers,
-      body,
-
-      loadResponseData = function( callback ) {
-        if (body && headers) {
-          callback();
-          return;
-        }
-        fs.readFile( filename, function (err, data) {
-          if (err) {
-            sys.puts("Error loading " + filename);
-          } else {
-            body = data;
-            headers = {
-              "Content-Type": 'text/html',
-              "Content-Length": body.length
-            };
-            callback();
-          }
-        });
-      };
-
-  loadResponseData(function () {
-    res.writeHead(200, headers);
-    res.end(body);
-  });
-});
+server.addListener("request", requestHandler);
 
 server.listen(PORT, HOST);
