@@ -85,7 +85,7 @@
 
             // if web socket connected
             if (conn.readyState === 1) {
-              conn.send( JSON.stringify( feed.value ) );
+              conn.send(feed.value);
               feed.value = "";
             }
           }, false);

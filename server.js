@@ -17,16 +17,6 @@ var HOST = config.host || null, // localhost
     CLIENT = config.client || "client.html",
     DEBUG = config.password || false;
 
-var percentEncode = function( str ) {
-  return encodeURI( str )
-      .replace(/\!/g, "%21")
-      .replace(/\'/g, "%27")
-      .replace(/\(/g, "%28")
-      .replace(/\)/g, "%29")
-      .replace(/\*/g, "%2A")
-      .replace(/\./g, "%2E");
-};
-
 var printRequest = function(request, body) {
   sys.puts("");
   sys.puts("REQUEST");
@@ -43,8 +33,9 @@ var printResponse = function(response, body) {
 };
 
 var Subscription = function( callbackUri, feed ) {
+  
   this.mode = "subscribe";
-  this.verify = "async";
+  this.verify = "sync";
   this.callback = callbackUri;
   this.topic = this.id = feed; // TODO: convert id into a hash of the feed url.
 
@@ -52,11 +43,11 @@ var Subscription = function( callbackUri, feed ) {
     "hub.mode" : this.mode,
     "hub.verify" : this.verify,
     "hub.callback" : this.callback,
-    "hub.topic" : this.topic.replace(/"/g, "")
+    "hub.topic" : this.topic //.replace(/"/g, "")
   };
 
   this.data = function() {
-    return percentEncode( querystring.stringify( params ) );
+    return querystring.stringify( params ) ; 
   }
 };
 
@@ -203,7 +194,7 @@ server.addListener("connection", function( conn ) {
 
     // Send subscription request to hub.
     var callbackUri = "http://"+(HOST || "localhost")+":"+PORT+"/wsclients/"+wsid+"/",
-        sub = new Subscription( callbackUri, message ),
+        sub = new Subscription( callbackUri, message),
         body = sub.data(),
         hub = url.parse( HUB ),
         contentLength = body.length,
