@@ -1,9 +1,0 @@
-{
-  "host" : null,
-  "port" : 27261,
-  "hub" : "http://superfeedr.com/hubbub",
-  "username" : "username",
-  "password" : "password",
-  "client" : "client.html",
-  "debug" : false
-}
