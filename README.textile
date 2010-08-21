@@ -4,7 +4,7 @@ bq. Caveat Emptor: This project is still under development and is not yet even a
 
 h2. Install and dependencies
 
-This needs to happen on a server that is NOT behind a firewall. PubSubHubbub is a server-to-server protocol. It won't work on your local machine. You can certainly try to use the wonderful "Localtunnel":http://github.com/progrium/localtunnel/ from "@progrium":http://twitter.com/progrium
+This needs to happen on a server that is NOT behind a firewall. PubSubHubbub is a server-to-server protocol. It won't work on your local machine. You can certainly try to use the wonderful "Localtunnel":http://github.com/progrium/localtunnel/ from "@progrium":http://twitter.com/progrium, the wizard.
 
 # Install "Node.js":http://nodejs.org/
 
@@ -18,11 +18,11 @@ h2. Configure
 
 # @cp default_config.json config.json@
 
-# Edit the config.json 
+# Edit the @config.json@ file (Feel free to setup the @debug@ flag to true if something is weird)
 
 h2. Run it
 
-# *$ node server.js*
+# @$ node server.js@
 
 # Edit the @client.html@ file 
 
