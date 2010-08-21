@@ -206,11 +206,9 @@ web_server.get(config.pubsubhubbub.callback_url_path + ':socket_id/:subscription
     var subscription = subscriptions_store.subscription(req.params.socket_id, req.params.subscription_id);
     if (subscription) {
       // Let's find teh socket to confirm subscription or not!
-      log("huh")
-      log(subscription.socket_id)
-      ws_server.manager.find(subscription.socket_id, function(socket){
-        log("okiii")
-        if(socket) {
+      ws_server.send(subscription.socket_id, "", function(client) {
+        if(client) {
+          // Connected
           if(req.query && req.query.hub && req.query.hub.mode == "subscribe") {
             log("Confirmed subscription to" + req.params.subscription_id + " for " + req.params.socket_id)
             res.send(req.query.hub.challenge, 200);
@@ -221,9 +219,7 @@ web_server.get(config.pubsubhubbub.callback_url_path + ':socket_id/:subscription
           }
         }
         else {
-          log("socket not found")
-          log(req.query.hub.mode)
-          log(req.query.hub.challenge)
+          // Not connected
           if(req.query && req.query.hub && req.query.hub.mode == "unsubscribe") {
             log("Confirmed subscription to" + req.params.subscription_id + " for " + req.params.socket_id)
             res.send(req.query.hub.challenge, 200);
@@ -244,30 +240,29 @@ web_server.get(config.pubsubhubbub.callback_url_path + ':socket_id/:subscription
 //
 // Incoming POST notifications.
 // Sends the data to the right Socket, based on the subscription. Unsubscibes unused subscriptions.
-web_server.post(config.pubsubhubbub.callback_url_path + ':socket_id/:subscription_id', function(req, res) {
-    var subscription = subscriptions_store.subscription(req.params.socket_id, req.params.subscription_id);
+web_server.post(config.pubsubhubbub.callback_url_path + ':socket_id/:feed_id', function(req, res) {
+    var subscription = subscriptions_store.subscription(req.params.socket_id, req.params.feed_id);
     if(subscription) {
       req.on('data', function(data) {
-        ws_server.manager.find(subscription.socket_id, function(socket){
-          if(socket){
-            log("Sending notification for " + subscription.socket_id + " from " + subscription.feed.url)
-            ws_server.send(subscription.socket_id, data );
-          }
-          else {
-            log("Deleting subscription from " + subscription.socket_id + " to " + subscription.feed.url)
-            subscribe(subscription, "unsubscribe", function() {
-              log("Unsubscribed from "+ existing_subs[feed_id].feed.url );
-              subscriptions_store.delete_subscription(socket.id, feed_id);
-            }, function() {
-              log("Couldn't unsubscribe from "+ existing_subs[feed_id].feed.url );
-            }); 
-          }
+        ws_server.send(subscription.socket_id, data, function(socket) {
+         if(socket) {
+           log("Sent notification for " + subscription.socket_id + " from " + subscription.feed.url)
+         } 
+         else {
+           log("Looks like " + subscription.socket_id + " is offline!");
+           subscribe(subscription, "unsubscribe", function() {
+             log("Unsubscribed from "+ subscription.feed.url );
+             subscriptions_store.delete_subscription(subscription.socket_id, req.params.feed_id);
+           }, function() {
+             log("Couldn't unsubscribe from "+ subscription.feed.url );
+           }); 
+         }
         });
       })
       res.send("Thanks!", 200);
     }
     else {
-      log("Couldn't find the subscription from " + req.params.subscription_id + " for " + req.params.socket_id)
+      log("Couldn't find the subscription from " + req.params.feed_id + " for " + req.params.socket_id)
       res.send(404);
     }
 });
