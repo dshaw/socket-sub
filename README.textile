@@ -1,6 +1,8 @@
 h1. PubSubHubbub Web Socket Subscriber
 
-bq. Caveat Emptor: This project is still under development and is not yet even at alpha quality. That said, all contributions and feedback are welcome.
+Big thanks to "dshaw":http://github.com/dshaw/socket-sub for helping me boostrap this.
+
+There is a temporary demo of this server that is running at 
 
 h2. Install and dependencies
 
