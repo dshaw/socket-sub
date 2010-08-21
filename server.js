@@ -60,7 +60,12 @@ var SubscriptionStore = function() {
   //
   // Returns all the susbcriptions for a given socket id
   this.for_socket_id = function(socket_id) {
-    return this.subscribers[socket_id].subscriptions;
+    if(this.subscribers[socket_id]) {
+      return this.subscribers[socket_id].subscriptions;
+    }
+    else {
+      return {};
+    }
   }
 
   // 
