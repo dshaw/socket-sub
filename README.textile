@@ -1,0 +1,47 @@
+h1. PubSubHubbub Web Socket Subscriber
+
+Big thanks to "dshaw":http://github.com/dshaw/socket-sub for helping me boostrap this.
+
+There is a temporary demo of this server that is running at @http://node.superfeedr.com/@. And a demo client "gracefully hosted by Github as a page":http://julien51.github.com/socket-sub/ :)
+
+h2. Install and dependencies
+
+This needs to happen on a server that is NOT behind a firewall. PubSubHubbub is a server-to-server protocol. It won't work on your local machine. You can certainly try to use the wonderful "Localtunnel":http://github.com/progrium/localtunnel/ from "@progrium":http://twitter.com/progrium, the wizard.
+
+# Install "Node.js":http://nodejs.org/
+
+# Install "ExpressJS":http://expressjs.com/guide.html
+
+# Clone repository : @git clone git://github.com/julien51/socket-sub.git@
+
+# Add the node-websocket-server submodule : @git submodule init@ and @git submodule update@
+
+h2. Configure
+
+# @cp default_config.json config.json@
+
+# Edit the @config.json@ file (Feel free to setup the @debug@ flag to true if something is weird)
+
+h2. Run it
+
+# @$ node server.js@
+
+# Edit the @client.html@ file 
+
+# Open in it your favorite browser (even from your local filesystem, the magic happens thru websockets). Ha, yes you *need a browser that supports WebSockets*.
+
+h2. To do
+
+There is a ton of stuff to be done here... feel free to fork and implement any. I'm happy to merge back. Also, Superfeedr can grant free credits to anyone who make significant contributions :)
+
+* storage of the subscriptions
+
+* storage of notifications
+
+* XML -> Json for the client
+
+* Superfeedr track API
+
+...
+
+Have fun!

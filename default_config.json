@@ -1,0 +1,22 @@
+{
+  "websocket" : {
+    "listen": {
+      "host" : "localhost",
+      "port" : 27261
+    }
+  },
+  "pubsubhubbub" : {
+    "hub" : "http://superfeedr.com/hubbub",
+    "username" : "login",
+    "password" : "password",
+    "listen": {
+      "host" : "domain.com",
+      "port" : 80
+    },
+    "callback_url_root" : "http://domain.com",
+    "callback_url_path" : "/sockets/",
+    "verify_mode": "sync"
+  },
+  "client" : "client.html",
+  "debug" : false
+}
