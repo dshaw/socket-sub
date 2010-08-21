@@ -175,7 +175,7 @@ ws_server.addListener("connection", function(socket ) {
     ws_server.send(socket.id, "Subscribing to " + feed_url);
     var subscription = subscriptions_store.subscribe(socket.id, feed_url);
     subscribe(subscription, "subscribe", function() {
-      log("Susbcribed to " + feed_url + " for " + socket.id);
+      log("Subscribed to " + feed_url + " for " + socket.id);
       ws_server.send(socket.id, "Subscribed to " + feed_url);
     }, function(error) {
       log("Failed subscription to " + feed_url + " for " + socket.id);
@@ -204,9 +204,36 @@ var web_server = express.createServer();
 // PubSubHubbub verification of intent
 web_server.get(config.pubsubhubbub.callback_url_path + ':socket_id/:subscription_id', function(req, res) {
     var subscription = subscriptions_store.subscription(req.params.socket_id, req.params.subscription_id);
-    if(req.query && req.query.hub && ((req.query.hub.mode == "subscribe" && subscription) || (req.query.hub.mode == "unsubscribe" && !subscription))) {
-      log("Confirmed subscription to" + req.params.subscription_id + " for " + req.params.socket_id)
-      res.send(req.query.hub.challenge, 200);
+    if (subscription) {
+      // Let's find teh socket to confirm subscription or not!
+      log("huh")
+      log(subscription.socket_id)
+      ws_server.manager.find(subscription.socket_id, function(socket){
+        log("okiii")
+        if(socket) {
+          if(req.query && req.query.hub && req.query.hub.mode == "subscribe") {
+            log("Confirmed subscription to" + req.params.subscription_id + " for " + req.params.socket_id)
+            res.send(req.query.hub.challenge, 200);
+          }
+          else {
+            log("Couldn't confirm subscription to " + req.params.subscription_id + " for " + req.params.socket_id)
+            res.send(404);
+          }
+        }
+        else {
+          log("socket not found")
+          log(req.query.hub.mode)
+          log(req.query.hub.challenge)
+          if(req.query && req.query.hub && req.query.hub.mode == "unsubscribe") {
+            log("Confirmed subscription to" + req.params.subscription_id + " for " + req.params.socket_id)
+            res.send(req.query.hub.challenge, 200);
+          }
+          else {
+            log("Couldn't confirm subscription to " + req.params.subscription_id + " for " + req.params.socket_id)
+            res.send(404);
+          }
+        }
+      });
     }
     else {
       log("Couldn't confirm subscription to " + req.params.subscription_id + " for " + req.params.socket_id)
@@ -221,13 +248,26 @@ web_server.post(config.pubsubhubbub.callback_url_path + ':socket_id/:subscriptio
     var subscription = subscriptions_store.subscription(req.params.socket_id, req.params.subscription_id);
     if(subscription) {
       req.on('data', function(data) {
-        log("Notification for " + subscription.feed.url)
-        ws_server.send(subscription.socket_id, data );
+        ws_server.manager.find(subscription.socket_id, function(socket){
+          if(socket){
+            log("Sending notification for " + subscription.socket_id + " from " + subscription.feed.url)
+            ws_server.send(subscription.socket_id, data );
+          }
+          else {
+            log("Deleting subscription from " + subscription.socket_id + " to " + subscription.feed.url)
+            subscribe(subscription, "unsubscribe", function() {
+              log("Unsubscribed from "+ existing_subs[feed_id].feed.url );
+              subscriptions_store.delete_subscription(socket.id, feed_id);
+            }, function() {
+              log("Couldn't unsubscribe from "+ existing_subs[feed_id].feed.url );
+            }); 
+          }
+        });
       })
       res.send("Thanks!", 200);
     }
     else {
-      log("Couldn't find the susbcription from " + req.params.subscription_id + " for " + req.params.socket_id)
+      log("Couldn't find the subscription from " + req.params.subscription_id + " for " + req.params.socket_id)
       res.send(404);
     }
 });
@@ -237,6 +277,9 @@ web_server.addListener("listening", function() {
   log("Listening to HTTP connections on http://" + hostInfo);
 });
 
+web_server.get("/", function(req, res) {
+  res.send("<a href='http://github.com/julien51/socket-sub'>Socket Sub</a>", 200);
+});
 
 var subscriptions_store = new SubscriptionStore(); 
 ws_server.listen(config.websocket.listen.port, config.websocket.listen.host);
