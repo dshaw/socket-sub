@@ -8,10 +8,24 @@ h2. Install and dependencies
 
 # Install "ExpressJS":http://expressjs.com/guide.html
 
-# Clone repository : @git://github.com/julien51/socket-sub.git@
+# Clone repository : @git clone git://github.com/julien51/socket-sub.git@
 
 # Add the node-websocket-server submodule : @git submodule init@ and @git submodule update@
 
+h2. Configure
+
+# @cp default_config.json config.json@
+
+# Edit the config.json 
+
 h2. Run it
 
-*$ node server.js*
+# *$ node server.js*
+
+# Edit the @client.html@ file 
+
+# Open in it your favorite browser (even from your local filesystem, the magic happens thru websockets). Ha, yes you *need a browser that supports WebSockets*.
+
+
+
+Have fun!
