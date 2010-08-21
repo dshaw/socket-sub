@@ -10,7 +10,8 @@ h2. Install and dependencies
 
 # Clone repository : @git://github.com/julien51/socket-sub.git@
 
-Make sure you add the node-websocket-server into deps/node-websocket-server
+# Add the node-websocket-server submodule : @git submodule init@ and @git submodule update@
 
-to run
-$ node server.js
+h2. Run it
+
+*$ node server.js*
