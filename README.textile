@@ -1,7 +1,14 @@
-== PubSubHubbub Web Socket Subscriber ==
+h1. PubSubHubbub Web Socket Subscriber
 
-Caveat Emptor: This project is still under development and is not yet even at alpha quality.
-That said, all contributions and feedback are welcome.
+bq. Caveat Emptor: This project is still under development and is not yet even at alpha quality. That said, all contributions and feedback are welcome.
+
+h2. Install and dependencies
+
+# Install "Node.js":http://nodejs.org/
+
+# Install "ExpressJS":http://expressjs.com/guide.html
+
+# Clone repository : @git://github.com/julien51/socket-sub.git@
 
 Make sure you add the node-websocket-server into deps/node-websocket-server
 
