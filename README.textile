@@ -2,7 +2,7 @@ h1. PubSubHubbub Web Socket Subscriber
 
 Big thanks to "dshaw":http://github.com/dshaw/socket-sub for helping me boostrap this.
 
-There is a temporary demo of this server that is running at 
+There is a temporary demo of this server that is running at @http://node.superfeedr.com/@. And a demo client "gracefully hosted by Github as a page":http://julien51.github.com/socket-sub/ :)
 
 h2. Install and dependencies
 
