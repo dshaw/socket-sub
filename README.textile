@@ -30,6 +30,18 @@ h2. Run it
 
 # Open in it your favorite browser (even from your local filesystem, the magic happens thru websockets). Ha, yes you *need a browser that supports WebSockets*.
 
+h2. To do
 
+There is a ton of stuff to be done here... feel free to fork and implement any. I'm happy to merge back. Also, Superfeedr can grant free credits to anyone who make significant contributions :)
+
+* storage of the subscriptions
+
+* storage of notifications
+
+* XML -> Json for the client
+
+* Superfeedr track API
+
+...
 
 Have fun!
