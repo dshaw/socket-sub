@@ -8,27 +8,12 @@ var fs = require("fs"),
     ws = require('./deps/node-websocket-server/lib/ws');
 
 
-var config = JSON.parse( fs.readFileSync("./config.json", "utf8") ) || JSON.parse( fs.readFileSync("./default_config.json", "utf8") );
+var config = JSON.parse(fs.readFileSync("./config.json", "utf8") ) || JSON.parse(fs.readFileSync("./default_config.json", "utf8") );
 
-
-//////////////////////////////////////////////////////////////////////////////////////////
-//                              Helpers                                                 //
-//////////////////////////////////////////////////////////////////////////////////////////
-
-
-var printRequest = function(request, body) {
-  sys.puts("");
-  sys.puts("REQUEST");
-  sys.print(request._header);
-  sys.puts(body);
-};
-
-var printResponse = function(response, body) {
-  sys.puts("");
-  sys.puts("RESPONSE");
-  sys.puts("STATUS: "+response.statusCode);
-  sys.puts("HEADERS: "+JSON.stringify(response.headers));
-  sys.puts("BODY: "+body);
+var log = function(message) {
+  if(config.debug) {
+    sys.puts(message);
+  }
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -44,10 +29,10 @@ var Feed = function(url) {
 
 //
 // Subscription object
-var Subscription = function( wsid, feed ) {
-  this.wsid = wsid;
+var Subscription = function(socket_id, feed ) {
+  this.socket_id = socket_id;
   this.feed = feed; 
-  this.callback_url = config.pubsubhubbub.callback_url_root + config.pubsubhubbub.callback_url_path + this.wsid + "/" + this.feed.id;
+  this.callback_url = config.pubsubhubbub.callback_url_root + config.pubsubhubbub.callback_url_path + this.socket_id + "/" + this.feed.id;
 };
 
 //
@@ -111,97 +96,10 @@ var SubscriptionStore = function() {
   
 };
 
-var requestHandler = function( req, res ) {
 
-  var handle,
-      id,
-      uri = url.parse( req.url ),
-      path = (uri.pathname.substring(1)).split("/"),
-      simpleHeader = function(body) {
-        return {
-          "Content-Type": 'text/html',
-          "Content-Length": body.length
-        }
-      }
-      requestMap = {
-        404 : function ( req, res ) {
-          body = "File not found"
-          headers = simpleHeader(body);
-          res.sendHeader(404, headers);
-          res.write(body);
-          res.close();
-        },
-        index : function( req, res ) {
-          var body,
-              headers,
-
-              loadResponseData = function( callback ) {
-                if (body && headers) {
-                  callback();
-                  return;
-                }
-                fs.readFile( config.client, function (err, data) {
-                  if (err) {
-                    sys.puts("Error loading " + filename);
-                  } else {
-                    body = data;
-                    headers = simpleHeader(body);
-                    callback();
-                  }
-                });
-              };
-
-          loadResponseData(function () {
-            res.writeHead(200, headers);
-            res.end(body);
-          });
-        },
-        wsclient : function ( req, res, id ) {
-          switch(req.method) {
-            case "GET":
-              body = id,
-              headers = simpleHeader(body);
-              res.sendHeader(200, headers);
-              res.write(body);
-              res.close();
-              break;
-            case "POST":
-              var data = "", hub = this;
-              req.addListener("data", function(chunk) {
-                  data += chunk;
-              });
-              req.addListener("end", function() {
-                  var params = qs.parse(data);
-                  if("hub.mode" in params &&
-                     ~["publish",
-                       "subscribe",
-                       "unsubscribe"].indexOf(params["hub.mode"])) {
-                      hub["do_"+params["hub.mode"]](req, res, params);
-                  } else {
-                      hub["400"](req, res, "Unknown hub.mode parameter");
-                  }
-              });
-              break;
-          }
-        }
-      };
-
-  if (path.length === 0 || path === "client.html") {
-    handle = "index";
-  } else if ( path[0] === "wsclients" ) {
-    if ( !!path[1] && !isNaN(parseInt(path[1], 10)) ) {
-      handle = "wsclients";
-      id = path[1];
-    } else {
-      handle = "404";
-    }
-  } else if ( !(path in requestMap) && !isNaN(parseInt(path, 10)) ) {
-    handle = "404";
-  } else {
-    req.setBodyEncoding("utf-8");
-    requestMap[handle]( req, res, id );
-  }
-};
+//////////////////////////////////////////////////////////////////////////////////////////
+//                              PubSubHubbub                                            //
+//////////////////////////////////////////////////////////////////////////////////////////
 
 
 //
@@ -232,113 +130,109 @@ var subscribe = function(subscription, mode, callback, errback) {
   var request = client.request("POST", hub.pathname + (hub.search || ""), headers);
 
   request.write(body, 'utf8');
-  
-  if (config.debug) printRequest( request, body );
 
   request.addListener("response", function(response) {
+    var body = "";
+    response.addListener("data", function(chunk) {
+        body += chunk;
+    });
     response.addListener('end', function() {
       if(response.statusCode == 204) {
         callback();
       }
       else {
-        errback();
+        errback(body);
       }
-      if (config.debug) printResponse( response, body );
     });
   });
   request.end(); // Actually Perform the request
 }
 
 
-var subscriptions_store = new SubscriptionStore(); 
+//////////////////////////////////////////////////////////////////////////////////////////
+//                              Let's get started                                       //
+//////////////////////////////////////////////////////////////////////////////////////////
 
 // Web Socket Server ---- (server <-> browser) --------------------------------------
 var ws_server = ws.createServer({ debug: config.debug });
 
 ws_server.addListener("listening", function() {
   var hostInfo = config.websocket.listen.host + ":" + config.websocket.listen.port.toString();
-  sys.puts("Listening to WebSocket connections on ws://" + hostInfo);
+  log("Listening to WebSocket connections on ws://" + hostInfo);
 });
 
-// Handle Web Socket Subscription requests
-ws_server.addListener("connection", function( conn ) {
-  ws_server.send( conn._id, "Awaiting feed subscription request" );
-  conn.addListener("message", function( message ) {
-    
-    var wsid = conn._id;
-    sys.puts( "<"+wsid+"> " + message );
-    
-    // TODO: validate feed uri
-    ws_server.send( wsid, "Subscribing to "+message );
-    
-    // Create the subscription
-    // And attach it to the subscription store
-    var sub = subscriptions_store.subscribe(wsid, message);
-    subscribe(sub, "subscribe", function() {
-      ws_server.send( wsid, "Subscribed to "+message );
-    }, function() {
-      ws_server.send( wsid, "Couldn't subscribe to "+message );
+// Handle Web Sockets when they connect
+ws_server.addListener("connection", function(socket ) {
+  // When connected
+  ws_server.send(socket.id, "Awaiting feed subscription request");
+  socket.addListener("message", function(feed_url) {
+    // When asked to subscribe to a feed_url
+    ws_server.send(socket.id, "Subscribing to " + feed_url);
+    var subscription = subscriptions_store.subscribe(socket.id, feed_url);
+    subscribe(subscription, "subscribe", function() {
+      log("Susbcribed to " + feed_url + " for " + socket.id);
+      ws_server.send(socket.id, "Subscribed to " + feed_url);
+    }, function(error) {
+      log("Failed subscription to " + feed_url + " for " + socket.id);
+      ws_server.send(socket.id, "Couldn't subscribe to " + feed_url + " : "+ error.trim() );
     });
   });
-
 });
 
-//
-// Called when a WebSocket Connection is closed : we want to unsusbcribe.
-ws_server.addListener("close", function( socket ) {
+// Handle Web Sockets when they disconnect. We need to unsusbcribe.
+ws_server.addListener("close", function(socket ) {
   var existing_subs = subscriptions_store.for_socket_id(socket.id);
   for(feed_id in existing_subs)
   {
     subscribe(existing_subs[feed_id], "unsubscribe", function() {
-      sys.puts("Unsubscribed from "+ existing_subs[feed_id].feed.url );
+      log("Unsubscribed from "+ existing_subs[feed_id].feed.url );
       subscriptions_store.delete_subscription(socket.id, feed_id);
     }, function() {
-      sys.puts("Couldn't unsubscribe from "+ existing_subs[feed_id].feed.url );
+      log("Couldn't unsubscribe from "+ existing_subs[feed_id].feed.url );
     });
   }
 });
 
-// Starts the Websocket Server
-ws_server.listen(config.websocket.listen.port, config.websocket.listen.host);
-
 // Web Server -------- (server <-> hub) --------------------------------------------
 var web_server = express.createServer();
 
-//
 // PubSubHubbub verification of intent
 web_server.get(config.pubsubhubbub.callback_url_path + ':socket_id/:subscription_id', function(req, res) {
     var subscription = subscriptions_store.subscription(req.params.socket_id, req.params.subscription_id);
     if(req.query && req.query.hub && ((req.query.hub.mode == "subscribe" && subscription) || (req.query.hub.mode == "unsubscribe" && !subscription))) {
-      sys.puts("Confirmed subscription to" + req.params.subscription_id + " for " + req.params.socket_id)
+      log("Confirmed subscription to" + req.params.subscription_id + " for " + req.params.socket_id)
       res.send(req.query.hub.challenge, 200);
     }
     else {
-      sys.puts("Couldn't confirm subscription to " + req.params.subscription_id + " for " + req.params.socket_id)
+      log("Couldn't confirm subscription to " + req.params.subscription_id + " for " + req.params.socket_id)
       res.send(404);
     }
 });
 
 //
 // Incoming POST notifications.
-// Sends the data to the right Socket, based on the subscription.
+// Sends the data to the right Socket, based on the subscription. Unsubscibes unused subscriptions.
 web_server.post(config.pubsubhubbub.callback_url_path + ':socket_id/:subscription_id', function(req, res) {
     var subscription = subscriptions_store.subscription(req.params.socket_id, req.params.subscription_id);
     if(subscription) {
       req.on('data', function(data) {
-        ws_server.send(subscription.wsid, data );
+        ws_server.send(subscription.socket_id, data );
       })
       res.send("Thanks!", 200);
     }
     else {
-      sys.puts("Couldn't find the susbcription from " + req.params.subscription_id + " for " + req.params.socket_id)
+      log("Couldn't find the susbcription from " + req.params.subscription_id + " for " + req.params.socket_id)
       res.send(404);
     }
 });
 
 web_server.addListener("listening", function() {
   var hostInfo = config.pubsubhubbub.listen.host + ":" + config.pubsubhubbub.listen.port.toString();
-  sys.puts("Listening to HTTP connections on http://" + hostInfo);
+  log("Listening to HTTP connections on http://" + hostInfo);
 });
 
+
+var subscriptions_store = new SubscriptionStore(); 
+ws_server.listen(config.websocket.listen.port, config.websocket.listen.host);
 web_server.listen(config.pubsubhubbub.listen.port, config.pubsubhubbub.listen.host);
 
