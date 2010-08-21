@@ -221,6 +221,7 @@ web_server.post(config.pubsubhubbub.callback_url_path + ':socket_id/:subscriptio
     var subscription = subscriptions_store.subscription(req.params.socket_id, req.params.subscription_id);
     if(subscription) {
       req.on('data', function(data) {
+        log("Notification for " + subscription.feed.url)
         ws_server.send(subscription.socket_id, data );
       })
       res.send("Thanks!", 200);
