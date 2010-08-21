@@ -1,201 +1,15 @@
 var fs = require("fs"),
-<<<<<<< HEAD
-    http = require("http"),
-    sys = require("sys"),
-=======
     express = require("express"),
     sys = require("sys"),
     http = require("http"),
->>>>>>> julien51/master
     querystring = require("querystring"),
     url = require("url"),
     base64 = require("./deps/base64"),
     ws = require('./deps/node-websocket-server/lib/ws');
 
-<<<<<<< HEAD
-var config = JSON.parse( fs.readFileSync("./config.json", "utf8") ) || {};
-
-// To configure this application, edit "config.json".
-var HOST = config.host || null, // localhost
-    PORT = config.port || 27261,
-    HUB = config.hub || "http://superfeedr.com/hubbub",
-    USERNAME = config.username || "username",
-    PASSWORD = config.password || "password",
-    CLIENT = config.client || "client.html",
-    DEBUG = config.password || false;
-
-var percentEncode = function( str ) {
-  return encodeURI( str )
-      .replace(/\!/g, "%21")
-      .replace(/\'/g, "%27")
-      .replace(/\(/g, "%28")
-      .replace(/\)/g, "%29")
-      .replace(/\*/g, "%2A")
-      .replace(/\./g, "%2E");
-};
-
-var printRequest = function(request, body) {
-  sys.puts("");
-  sys.puts("REQUEST");
-  sys.print(request._header);
-  sys.puts(body);
-};
-
-var printResponse = function(response, body) {
-  sys.puts("");
-  sys.puts("RESPONSE");
-  sys.puts("STATUS: "+response.statusCode);
-  sys.puts("HEADERS: "+JSON.stringify(response.headers));
-  sys.puts("BODY: "+body);
-};
-
-var Subscription = function( callbackUri, feed ) {
-  this.mode = "subscribe";
-  this.verify = "async";
-  this.callback = callbackUri;
-  this.topic = this.id = feed; // TODO: convert id into a hash of the feed url.
-
-  var params = {
-    "hub.mode" : this.mode,
-    "hub.verify" : this.verify,
-    "hub.callback" : this.callback,
-    "hub.topic" : this.topic.replace(/"/g, "")
-  };
-
-  this.data = function() {
-    return percentEncode( querystring.stringify( params ) );
-  }
-};
-
-var SubscriptionManager = function() {
-  this.subscribers = {};
-
-  this.connect = function(id) {
-    if (!this.subscribers[id]) {
-      this.subscribers[id] = {
-        subscriptions : {}
-      };
-    }
-  }
-
-  this.disconnect = function(id) {
-    delete this.subscribers[id];
-  }
-
-  this.subscribe = function(id, subscription) {
-    if (!this.subscribers[id].subscriptions[subscription.id]) {
-      this.subscribers[id].subscriptions[subscription.id] = subscription;
-    }
-  }
-};
-
-var requestHandler = function( req, res ) {
-
-  var handle,
-      id,
-      uri = url.parse( req.url ),
-      path = (uri.pathname.substring(1)).split("/"),
-      simpleHeader = function(body) {
-        return {
-          "Content-Type": 'text/html',
-          "Content-Length": body.length
-        }
-      }
-      requestMap = {
-        404 : function ( req, res ) {
-          body = "File not found"
-          headers = simpleHeader(body);
-          res.sendHeader(404, headers);
-          res.write(body);
-          res.close();
-        },
-        index : function( req, res ) {
-          var body,
-              headers,
-
-              loadResponseData = function( callback ) {
-                if (body && headers) {
-                  callback();
-                  return;
-                }
-                fs.readFile( CLIENT, function (err, data) {
-                  if (err) {
-                    sys.puts("Error loading " + filename);
-                  } else {
-                    body = data;
-                    headers = simpleHeader(body);
-                    callback();
-                  }
-                });
-              };
-
-          loadResponseData(function () {
-            res.writeHead(200, headers);
-            res.end(body);
-          });
-        },
-        wsclient : function ( req, res, id ) {
-          switch(req.method) {
-            case "GET":
-              body = id,
-              headers = simpleHeader(body);
-              res.sendHeader(200, headers);
-              res.write(body);
-              res.close();
-              break;
-            case "POST":
-              var data = "", hub = this;
-              req.addListener("data", function(chunk) {
-                  data += chunk;
-              });
-              req.addListener("end", function() {
-                  var params = qs.parse(data);
-                  if("hub.mode" in params &&
-                     ~["publish",
-                       "subscribe",
-                       "unsubscribe"].indexOf(params["hub.mode"])) {
-                      hub["do_"+params["hub.mode"]](req, res, params);
-                  } else {
-                      hub["400"](req, res, "Unknown hub.mode parameter");
-                  }
-              });
-              break;
-          }
-        }
-      };
-
-  if (path.length === 0 || path === "client.html") {
-    handle = "index";
-  } else if ( path[0] === "wsclients" ) {
-    if ( !!path[1] && !isNaN(parseInt(path[1], 10)) ) {
-      handle = "wsclients";
-      id = path[1];
-    } else {
-      handle = "404";
-    }
-  } else if ( !(path in requestMap) && !isNaN(parseInt(path, 10)) ) {
-    handle = "404";
-  } else {
-    req.setBodyEncoding("utf-8");
-    requestMap[handle]( req, res, id );
-  }
-};
-
-
-var subMan = new SubscriptionManager(); // connection manager
-
-=======
->>>>>>> julien51/master
 
 var config = JSON.parse(fs.readFileSync("./config.json", "utf8") ) || JSON.parse(fs.readFileSync("./default_config.json", "utf8") );
 
-<<<<<<< HEAD
-server.addListener("listening", function() {
-  var hostInfo = (HOST || "localhost") + ":" + PORT.toString();
-  sys.puts("Server at http://" + hostInfo + "/");
-  sys.puts("Listening for connections at ws://" + hostInfo);
-});
-=======
 var log = function(message) {
   if(config.debug) {
     sys.puts(message);
@@ -217,7 +31,7 @@ var Feed = function(url) {
 // Subscription object
 var Subscription = function(socket_id, feed ) {
   this.socket_id = socket_id;
-  this.feed = feed; 
+  this.feed = feed;
   this.callback_url = config.pubsubhubbub.callback_url_root + config.pubsubhubbub.callback_url_path + this.socket_id + "/" + this.feed.id;
 };
 
@@ -226,7 +40,7 @@ var Subscription = function(socket_id, feed ) {
 // Which means that the server will probably eat a lot of memory when there are a lot of client connected and/or a lot of feeds susbcribed
 var SubscriptionStore = function() {
   this.subscribers = {};
-  
+
   //
   // Delete the subscription for this socket id and feed id. If all susbcriptions have been deleted for this socket id, delete the it too.
   this.delete_subscription = function(socket_id, feed_id) {
@@ -254,7 +68,7 @@ var SubscriptionStore = function() {
     }
   }
 
-  // 
+  //
   // Creates (or just returns) a new subscription for this socket id and this feed url
   this.subscribe = function(socket_id, url) {
     if (!this.subscribers[socket_id]) {
@@ -272,7 +86,7 @@ var SubscriptionStore = function() {
       return this.subscribers[socket_id].subscriptions[feed.id];
     }
   }
-  
+
   //
   // Returns the subscription for this socket id and feed id
   this.subscription = function(socket_id, feed_id) {
@@ -284,71 +98,10 @@ var SubscriptionStore = function() {
       return false;
     }
   }
-  
+
 };
->>>>>>> julien51/master
 
 
-<<<<<<< HEAD
-  subMan.connect( conn._id );
-  sys.puts( "<"+conn._id+"> connected" );
-  server.send( conn._id, "Awaiting feed subscription request" );
-
-  conn.addListener("message", function( message ) {
-    var wsid = conn._id;
-    sys.puts( "<"+wsid+"> "+message );
-    // TODO: validate feed uri
-    sys.puts( "<"+wsid+"> Subscribing to "+message );
-    server.send( wsid, "Subscribing to "+message );
-
-    // Send subscription request to hub.
-    var callbackUri = "http://"+(HOST || "localhost")+":"+PORT+"/wsclients/"+wsid+"/",
-        sub = new Subscription( callbackUri, message ),
-        body = sub.data(),
-        hub = url.parse( HUB ),
-        contentLength = body.length,
-        headers = {
-          "Accept": '*/*',
-          "Authorization": "Basic "+base64.encode(USERNAME + ":" + PASSWORD),
-          "Content-Length": contentLength,
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Host": hub.hostname,
-          "User-Agent": "Socket-Sub for Node.js"
-        };
-
-    if ( (url.parse( callbackUri )).hostname === "localhost" ) {
-      var warning = "WARNING: PubSubHubbub subscriber cannot run from localhost.";
-      sys.puts(warning);
-      server.send( wsid, warning );
-    }
-
-    var client = http.createClient( hub.port || 80, hub.hostname );
-    var request = client.request("POST", hub.pathname + (hub.search || ""), headers);
-
-    request.write(body, 'utf8');
-
-    //    for (var p in request) {
-    //      if (typeof request[p] !== "function") {
-    //        sys.puts( p+": "+request[p] );
-    //      }
-    //    }
-    if (DEBUG) printRequest( request, body );
-
-    request.addListener("response", function(response) {
-      var body = "";
-
-      response.addListener("data", function(chunk) {
-        body += chunk;
-      });
-
-      response.addListener('end', function() {
-        subMan.subscribe(conn._id, sub);
-        if (DEBUG) printResponse( response, body );
-      });
-    });
-
-    request.end();
-=======
 //////////////////////////////////////////////////////////////////////////////////////////
 //                              PubSubHubbub                                            //
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -364,7 +117,7 @@ var subscribe = function(subscription, mode, callback, errback) {
     "hub.callback"  : subscription.callback_url,
     "hub.topic"     : subscription.feed.url
   };
-  
+
   var body = querystring.stringify(params)
       hub = url.parse(config.pubsubhubbub.hub),
       contentLength = body.length,
@@ -396,7 +149,6 @@ var subscribe = function(subscription, mode, callback, errback) {
         errback(body);
       }
     });
->>>>>>> julien51/master
   });
   request.end(); // Actually Perform the request
 }
@@ -414,15 +166,6 @@ ws_server.addListener("listening", function() {
   log("Listening to WebSocket connections on ws://" + hostInfo);
 });
 
-<<<<<<< HEAD
-server.addListener("close", function( conn ) {
-  subMan.disconnect( conn._id );
-  sys.puts( "<"+conn._id+"> closed connection." );
-});
-
-// Handle HTTP Requests
-server.addListener("request", requestHandler);
-=======
 // Handle Web Sockets when they connect
 ws_server.addListener("connection", function(socket ) {
   // When connected
@@ -504,7 +247,7 @@ web_server.post(config.pubsubhubbub.callback_url_path + ':socket_id/:feed_id', f
         ws_server.send(subscription.socket_id, data, function(socket) {
          if(socket) {
            log("Sent notification for " + subscription.socket_id + " from " + subscription.feed.url)
-         } 
+         }
          else {
            log("Looks like " + subscription.socket_id + " is offline!");
            subscribe(subscription, "unsubscribe", function() {
@@ -512,7 +255,7 @@ web_server.post(config.pubsubhubbub.callback_url_path + ':socket_id/:feed_id', f
              subscriptions_store.delete_subscription(subscription.socket_id, req.params.feed_id);
            }, function() {
              log("Couldn't unsubscribe from "+ subscription.feed.url );
-           }); 
+           });
          }
         });
       })
@@ -528,13 +271,11 @@ web_server.addListener("listening", function() {
   var hostInfo = config.pubsubhubbub.listen.host + ":" + config.pubsubhubbub.listen.port.toString();
   log("Listening to HTTP connections on http://" + hostInfo);
 });
->>>>>>> julien51/master
 
 web_server.get("/", function(req, res) {
   res.send("<a href='http://github.com/julien51/socket-sub'>Socket Sub</a>", 200);
 });
 
-var subscriptions_store = new SubscriptionStore(); 
+var subscriptions_store = new SubscriptionStore();
 ws_server.listen(config.websocket.listen.port, config.websocket.listen.host);
 web_server.listen(config.pubsubhubbub.listen.port, config.pubsubhubbub.listen.host);
-
