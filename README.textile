@@ -12,7 +12,7 @@ This needs to happen on a server that is NOT behind a firewall. PubSubHubbub is 
 
 # Install "ExpressJS":http://expressjs.com/guide.html - npm install express
 
-# Install "node-websocket-server":http://github.com/miksago/node-websocket-server - npm install websocket-server`
+# Install "node-websocket-server":http://github.com/miksago/node-websocket-server - npm install websocket-server
 
 # Clone repository : @git clone git://github.com/dshaw/socket-sub.git@
 
@@ -28,7 +28,7 @@ h2. Run it
 
 # Edit the @client.html@ file 
 
-# Open in it your favorite browser (even from your local filesystem, the magic happens thru websockets). Ha, yes you *need a browser that supports WebSockets*.
+# Open in it your favorite browser (even from your local filesystem, the magic happens through websockets). Ha, yes you *need a browser that supports WebSockets*.
 
 h2. To do
 
