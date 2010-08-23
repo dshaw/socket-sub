@@ -1,6 +1,6 @@
 h1. PubSubHubbub Web Socket Subscriber
 
-Big thanks to "dshaw":http://github.com/dshaw/socket-sub for helping me boostrap this.
+Big thanks to "dshaw":http://github.com/dshaw/socket-sub for helping "me":http://github.com/julien51/socket-sub boostrap this.
 
 There is a temporary demo of this server that is running at @http://node.superfeedr.com/@. And a demo client "gracefully hosted by Github as a page":http://julien51.github.com/socket-sub/ :)
 
@@ -10,11 +10,11 @@ This needs to happen on a server that is NOT behind a firewall. PubSubHubbub is 
 
 # Install "Node.js":http://nodejs.org/
 
-# Install "ExpressJS":http://expressjs.com/guide.html
+# Install "ExpressJS":http://expressjs.com/guide.html - npm install express
 
-# Clone repository : @git clone git://github.com/julien51/socket-sub.git@
+# Install "node-websocket-server":http://github.com/miksago/node-websocket-server - npm install websocket-server`
 
-# Add the node-websocket-server submodule : @git submodule init@ and @git submodule update@
+# Clone repository : @git clone git://github.com/dshaw/socket-sub.git@
 
 h2. Configure
 
