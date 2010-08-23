@@ -1,18 +1,19 @@
 var fs = require("fs"),
-    express = require("express"),
-    sys = require("sys"),
     http = require("http"),
     querystring = require("querystring"),
     url = require("url"),
+    // dependencies
     base64 = require("./deps/base64"),
-    ws = require('./deps/node-websocket-server/lib/ws');
+    // npm packages
+    express = require("express"),
+    ws = require("websocket-server");
 
 
 var config = JSON.parse(fs.readFileSync("./config.json", "utf8") ) || JSON.parse(fs.readFileSync("./default_config.json", "utf8") );
 
 var log = function(message) {
   if(config.debug) {
-    sys.puts(message);
+    console.log(message);
   }
 };
 
@@ -31,18 +32,18 @@ var Feed = function(url) {
 // Subscription object
 var Subscription = function(socket_id, feed ) {
   this.socket_id = socket_id;
-  this.feed = feed;
+  this.feed = feed; 
   this.callback_url = config.pubsubhubbub.callback_url_root + config.pubsubhubbub.callback_url_path + this.socket_id + "/" + this.feed.id;
 };
 
 //
 // Subscription store. We may want to persist it later, but right now, it's in memory.
-// Which means that the server will probably eat a lot of memory when there are a lot of client connected and/or a lot of feeds susbcribed
+// Which means that the server will probably eat a lot of memory when there are a lot of clients connected and/or a lot of feeds subscribed.
 var SubscriptionStore = function() {
   this.subscribers = {};
-
+  
   //
-  // Delete the subscription for this socket id and feed id. If all susbcriptions have been deleted for this socket id, delete the it too.
+  // Delete the subscription for this socket id and feed id. If all subscriptions have been deleted for this socket id, delete the it too.
   this.delete_subscription = function(socket_id, feed_id) {
     var subscriber = this.subscribers[socket_id];
     if(subscriber) {
@@ -58,7 +59,7 @@ var SubscriptionStore = function() {
   }
 
   //
-  // Returns all the susbcriptions for a given socket id
+  // Returns all the subscriptions for a given socket id
   this.for_socket_id = function(socket_id) {
     if(this.subscribers[socket_id]) {
       return this.subscribers[socket_id].subscriptions;
@@ -68,7 +69,7 @@ var SubscriptionStore = function() {
     }
   }
 
-  //
+  // 
   // Creates (or just returns) a new subscription for this socket id and this feed url
   this.subscribe = function(socket_id, url) {
     if (!this.subscribers[socket_id]) {
@@ -86,7 +87,7 @@ var SubscriptionStore = function() {
       return this.subscribers[socket_id].subscriptions[feed.id];
     }
   }
-
+  
   //
   // Returns the subscription for this socket id and feed id
   this.subscription = function(socket_id, feed_id) {
@@ -98,7 +99,7 @@ var SubscriptionStore = function() {
       return false;
     }
   }
-
+  
 };
 
 
@@ -108,7 +109,7 @@ var SubscriptionStore = function() {
 
 
 //
-// Main PubSubHubub method. Peforms the subscription and unsubscriptions
+// Main PubSubHubub method. Performs the subscription and unsubscriptions
 // It uses the credentials defined earlier.
 var subscribe = function(subscription, mode, callback, errback) {
   var params = {
@@ -117,7 +118,7 @@ var subscribe = function(subscription, mode, callback, errback) {
     "hub.callback"  : subscription.callback_url,
     "hub.topic"     : subscription.feed.url
   };
-
+  
   var body = querystring.stringify(params)
       hub = url.parse(config.pubsubhubbub.hub),
       contentLength = body.length,
@@ -136,12 +137,12 @@ var subscribe = function(subscription, mode, callback, errback) {
 
   request.write(body, 'utf8');
 
-  request.addListener("response", function(response) {
+  request.on("response", function(response) {
     var body = "";
-    response.addListener("data", function(chunk) {
+    response.on("data", function(chunk) {
         body += chunk;
     });
-    response.addListener('end', function() {
+    response.on('end', function() {
       if(response.statusCode == 204) {
         callback();
       }
@@ -161,16 +162,16 @@ var subscribe = function(subscription, mode, callback, errback) {
 // Web Socket Server ---- (server <-> browser) --------------------------------------
 var ws_server = ws.createServer({ debug: config.debug });
 
-ws_server.addListener("listening", function() {
+ws_server.on("listening", function() {
   var hostInfo = config.websocket.listen.host + ":" + config.websocket.listen.port.toString();
   log("Listening to WebSocket connections on ws://" + hostInfo);
 });
 
 // Handle Web Sockets when they connect
-ws_server.addListener("connection", function(socket ) {
+ws_server.on("connection", function(socket ) {
   // When connected
   ws_server.send(socket.id, "Awaiting feed subscription request");
-  socket.addListener("message", function(feed_url) {
+  socket.on("message", function(feed_url) {
     // When asked to subscribe to a feed_url
     ws_server.send(socket.id, "Subscribing to " + feed_url);
     var subscription = subscriptions_store.subscribe(socket.id, feed_url);
@@ -185,7 +186,7 @@ ws_server.addListener("connection", function(socket ) {
 });
 
 // Handle Web Sockets when they disconnect. We need to unsusbcribe.
-ws_server.addListener("close", function(socket ) {
+ws_server.on("close", function(socket ) {
   var existing_subs = subscriptions_store.for_socket_id(socket.id);
   for(feed_id in existing_subs)
   {
@@ -247,7 +248,7 @@ web_server.post(config.pubsubhubbub.callback_url_path + ':socket_id/:feed_id', f
         ws_server.send(subscription.socket_id, data, function(socket) {
          if(socket) {
            log("Sent notification for " + subscription.socket_id + " from " + subscription.feed.url)
-         }
+         } 
          else {
            log("Looks like " + subscription.socket_id + " is offline!");
            subscribe(subscription, "unsubscribe", function() {
@@ -255,7 +256,7 @@ web_server.post(config.pubsubhubbub.callback_url_path + ':socket_id/:feed_id', f
              subscriptions_store.delete_subscription(subscription.socket_id, req.params.feed_id);
            }, function() {
              log("Couldn't unsubscribe from "+ subscription.feed.url );
-           });
+           }); 
          }
         });
       })
@@ -267,15 +268,20 @@ web_server.post(config.pubsubhubbub.callback_url_path + ':socket_id/:feed_id', f
     }
 });
 
-web_server.addListener("listening", function() {
+web_server.on("listening", function() {
   var hostInfo = config.pubsubhubbub.listen.host + ":" + config.pubsubhubbub.listen.port.toString();
   log("Listening to HTTP connections on http://" + hostInfo);
 });
 
 web_server.get("/", function(req, res) {
-  res.send("<a href='http://github.com/julien51/socket-sub'>Socket Sub</a>", 200);
+  if (config.client) {
+    res.sendfile("client.html");
+  } else {
+    res.send("<a href='http://github.com/dshaw/socket-sub'>Socket Sub</a>", 200);
+  }
 });
 
-var subscriptions_store = new SubscriptionStore();
+var subscriptions_store = new SubscriptionStore(); 
 ws_server.listen(config.websocket.listen.port, config.websocket.listen.host);
 web_server.listen(config.pubsubhubbub.listen.port, config.pubsubhubbub.listen.host);
+
